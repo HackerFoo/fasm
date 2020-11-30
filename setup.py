@@ -16,7 +16,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="fasm",
-    version="0.0.1",
+    version="0.0.2",
     author="SymbiFlow Authors",
     author_email="symbiflow@lists.librecores.org",
     description="FPGA Assembly (FASM) Parser and Generation library",
@@ -25,9 +25,10 @@ setuptools.setup(
     url="https://github.com/SymbiFlow/fasm",
     packages=setuptools.find_packages(exclude=('tests*',)),
     package_data={
-        'fasm': ['*.tx'],
+        'fasm': ['*.g4'],
     },
-    install_requires=['textx'],
+    setup_requires=['setuptools-antlr'],
+    install_requires=['antlr4-python3-runtime'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: ISC License",
