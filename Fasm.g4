@@ -1,11 +1,12 @@
-grammar fasm;
+grammar Fasm;
 
 // Lexing Rules
 S: [ \t] -> skip ;
 NEWLINE: [\n\r] -> skip ;
 NON_ESCAPE_CHARACTERS: [^\\"] ;
 ESCAPE_SEQUENCES: [\\][\\"] ;
-IDENTIFIER: [a-zA-Z][0-9a-zA-Z_]+ ;
+fragment IDENTIFIER: [a-zA-Z][0-9a-zA-Z_]+ ;
+FEATURE: IDENTIFIER ('.' IDENTIFIER)* ;
 HEXIDECIMAL_VALUE: [0-9a-fA-F_]+ ;
 BINARY_VALUE: [01_]+ ;
 DECIMAL_VALUE: [0-9_]+ ;
@@ -21,8 +22,7 @@ fasmLine: (S* setFasmFeature)?
           (S* COMMENT_CAP)?
           S* NEWLINE ;
 
-setFasmFeature: S* feature featureAddress? S* ('=' S* verilogValue S*)? ;
-feature: IDENTIFIER ('.' IDENTIFIER)* ;
+setFasmFeature: S* FEATURE featureAddress? S* ('=' S* verilogValue S*)? ;
 featureAddress: '[' DECIMAL_VALUE (':' DECIMAL_VALUE)? ']' ;
 verilogValue: INT? S* '\'' ( 'h' S* HEXIDECIMAL_VALUE
                            | 'b' S* BINARY_VALUE
