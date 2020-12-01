@@ -10,9 +10,19 @@
 # SPDX-License-Identifier: ISC
 
 import setuptools
+import setuptools.command.build_py
+import os
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
+
+class BuildAntlrCommand(setuptools.command.build_py.build_py):
+  """Run ANTLR."""
+
+  def run(self):
+    os.system('python setup.py antlr -g FasmLexer')
+    os.system('python setup.py antlr -g FasmParser')
+    setuptools.command.build_py.build_py.run(self)
 
 setuptools.setup(
     name="fasm",
@@ -36,5 +46,8 @@ setuptools.setup(
     ],
     entry_points={
         'console_scripts': ['fasm=fasm:main'],
+    },
+    cmdclass={
+        'build_py' : BuildAntlrCommand,
     },
 )

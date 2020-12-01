@@ -16,9 +16,9 @@ from collections import namedtuple
 import enum
 
 from antlr4 import *
-from fasm_lex.FasmLexer import FasmLexer
+from fasm.FasmLexer import FasmLexer
 from fasm.FasmParser import FasmParser
-from fasm.FasmVisitor import FasmVisitor
+from fasm.FasmParserVisitor import FasmParserVisitor
 
 class ValueFormat(enum.Enum):
     PLAIN = 0
@@ -196,7 +196,7 @@ def canonical_features(set_feature):
                     value_format=None,
                 )
 
-class FasmTupleVisitor(FasmVisitor):
+class FasmTupleVisitor(FasmParserVisitor):
     def visitFasmFile(self, ctx):
         return map(self.visit, ctx.getChildren())
         

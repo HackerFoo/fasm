@@ -7,7 +7,7 @@ fasmLine : (S* setFasmFeature)?
            (S* COMMENT_CAP)?
            S* ;
 
-setFasmFeature : S* FEATURE featureAddress? S* ('=' S* value S*)? ;
+setFasmFeature : S* FEATURE featureAddress? S* (EQUAL S* value S*)? ;
 featureAddress : '[' INT (':' INT)? ']' ;
 
 value : INT? S* verilogDigits # VerilogValue
@@ -21,4 +21,4 @@ verilogDigits : HEXIDECIMAL_VALUE # HexValue
               ;
 
 annotations : BEGIN_ANNOTATION S* annotation (',' S* annotation)* S* END_ANNOTATION ;
-annotation : ANNOTATION_NAME S* '=' S* '"' ANNOTATION_VALUE '"' ;
+annotation : ANNOTATION_NAME S* ANNOTATION_EQUAL S* '"' ANNOTATION_VALUE '"' ;
