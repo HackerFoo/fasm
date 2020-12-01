@@ -16,7 +16,7 @@ from collections import namedtuple
 import enum
 
 from antlr4 import *
-from fasm.FasmLexer import FasmLexer
+from fasm_lex.FasmLexer import FasmLexer
 from fasm.FasmParser import FasmParser
 from fasm.FasmVisitor import FasmVisitor
 
@@ -54,14 +54,8 @@ def parse_fasm(s):
     """ Parse FASM from file or string, returning list of FasmLine named tuples."""
     lexer = FasmLexer(s)
     stream = CommonTokenStream(lexer)
-    stream.fill()
-    
-    for token in stream.getTokens(0, 100):
-        print('{} :: {}'.format(token.text, token.type))
-
     parser = FasmParser(stream)
     tree = parser.fasmFile()
-    print(tree)
     return FasmTupleVisitor().visit(tree)
 
 
@@ -203,13 +197,15 @@ def canonical_features(set_feature):
                 )
 
 class FasmTupleVisitor(FasmVisitor):
+    def visitFasmFile(self, ctx):
+        return map(self.visit, ctx.getChildren())
+        
     def visitSetFasmFeature(self, ctx):
         start = None
         end = None
         value = 1
         value_format = None
 
-        print(ctx.value())
         if ctx.value():
             value_format, value = self.visit(ctx.value())
         
@@ -231,12 +227,9 @@ class FasmTupleVisitor(FasmVisitor):
 
     def visitVerilogValue(self, ctx):
         value_format, value = self.visit(ctx.verilogDigits())
-        if ctx.INT():
+        if True:
             assert value < 2 ** int(ctx.INT().getText()), "value larger than bit width"
         return value_format, value
-
-    def visitVerilogValue(self, ctx):
-        return self.visit(ctx.verilogDigits())
     
     def visitHexValue(self, ctx):
         return ValueFormat.VERILOG_HEX, int(ctx.HEXADECIMAL_VALUE().getText()[2:].replace('_', ''), 16);
@@ -248,10 +241,13 @@ class FasmTupleVisitor(FasmVisitor):
         return ValueFormat.VERILOG_DECIMAL, int(ctx.DECIMAL_VALUE().getText()[2:].replace('_', ''), 10);
 
     def visitOctalValue(self, ctx):
-        return ValueFormat.VERILOG_OCTAL, int(ctx.OCTAL_VALUE().getText().replace[2:]('_', ''), 8);
+        return ValueFormat.VERILOG_OCTAL, int(ctx.OCTAL_VALUE().getText()[2:].replace('_', ''), 8);
 
     def visitPlainDecimal(self, ctx):
         return ValueFormat.PLAIN, int(ctx.INT().getText(), 10);
+
+    def visitAnnotations(self, ctx):
+        return map(self.visit, ctx.getChildren())
 
     def visitAnnotation(self, ctx):
         return Annotation(
