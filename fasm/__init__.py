@@ -15,9 +15,10 @@ import argparse
 from collections import namedtuple
 import enum
 
+from antlr4 import *
 from fasm.FasmLexer import FasmLexer
 from fasm.FasmParser import FasmParser
-from fasm.FasmListener import FasmListener
+from fasm.FasmVisitor import FasmVisitor
 
 class ValueFormat(enum.Enum):
     PLAIN = 0
@@ -49,20 +50,20 @@ Annotation = namedtuple('Annotation', 'name value')
 FasmLine = namedtuple('FasmLine', 'set_feature annotations comment')
 
 
-def assert_max_width(width, value):
-    """ asserts if the value is greater than the width. """
-    assert value < (2**width), (width, value)
-
 def parse_fasm(s):
     """ Parse FASM from file or string, returning list of FasmLine named tuples."""
     lexer = FasmLexer(s)
     stream = CommonTokenStream(lexer)
+    stream.fill()
+    
+    for token in stream.getTokens(0, 100):
+        print('{} :: {}'.format(token.text, token.type))
+
     parser = FasmParser(stream)
     tree = parser.fasmFile()
-    walker = ParseTreeWalker()
-    fasmTuples = FasmTupleListener()
-    walker.walk(fasmTuples, tree)
-    return fasmTuples.getTuples()
+    print(tree)
+    return FasmTupleVisitor().visit(tree)
+
 
 def parse_fasm_string(s):
     """ Parse FASM string, returning list of FasmLine named tuples."""
@@ -201,46 +202,62 @@ def canonical_features(set_feature):
                     value_format=None,
                 )
 
-class FasmTupleListener(FasmListener):
-    def __init__(self):
-        self.tuples = []
-
-    def enterSetFasmFeature(self, ctx):
-        value = 0
+class FasmTupleVisitor(FasmVisitor):
+    def visitSetFasmFeature(self, ctx):
+        start = None
+        end = None
+        value = 1
         value_format = None
-        width = int(ctx.INT()) if ctx.INT() else None
-        if ctx.HEXADECIMAL_VALUE():
-            s = ctx.HEXADECIMAL_VALUE().replace('_', '')
-            value = int(s, 16)
-            value_format = VERILOG_HEX
-        elif ctx.BINARY_VALUE():
-            s = ctx.BINARY_VALUE().replace('_', '')
-            value = int(s, 2)
-            value_format = VERILOG_BINARY
-        elif ctx.OCTAL_VALUE():
-            s = ctx.OCTAL_VALUE().replace('_', '')
-            value = int(s, 8)
-            value_format = VERILOG_OCTAL
-        elif ctx.DECIMAL_VALUE():
-            s = ctx.DECIMAL_VALUE().replace('_', '')
-            value = int(s, 10)
-            value_format = VERILOG_DECIMAL
-        else:
-            assert false, "missing value"
 
-        if width:
-            assert value < 2**width, "value larger than bit width"
-            
-        self.tuples.append(SetFasmFeature(
-            feature=ctx.FEATURE(),
-            start=ctx.DECIMAL_VALUE(0),
-            end=ctx.DECIMAL_VALUE(1),
+        print(ctx.value())
+        if ctx.value():
+            value_format, value = self.visit(ctx.value())
+        
+        if ctx.featureAddress():
+            start, end = self.visit(ctx.featureAddress())
+
+        return SetFasmFeature(
+            feature=ctx.FEATURE().getText(),
+            start=start,
+            end=end,
             value=value,
             value_format=value_format
-        ))
+        )
 
-    def getTuples(self):
-        return self.tuples
+    def visitFeatureAddress(self, ctx):
+        start = int(ctx.INT(0).getText(), 10)
+        end = None if not ctx.INT(1) else int(ctx.INT(1).getText(), 10)
+        return start, end
+
+    def visitVerilogValue(self, ctx):
+        value_format, value = self.visit(ctx.verilogDigits())
+        if ctx.INT():
+            assert value < 2 ** int(ctx.INT().getText()), "value larger than bit width"
+        return value_format, value
+
+    def visitVerilogValue(self, ctx):
+        return self.visit(ctx.verilogDigits())
+    
+    def visitHexValue(self, ctx):
+        return ValueFormat.VERILOG_HEX, int(ctx.HEXADECIMAL_VALUE().getText()[2:].replace('_', ''), 16);
+
+    def visitBinaryValue(self, ctx):
+        return ValueFormat.VERILOG_BINARY, int(ctx.BINARY_VALUE().getText()[2:].replace('_', ''), 2);
+
+    def visitDecimalValue(self, ctx):
+        return ValueFormat.VERILOG_DECIMAL, int(ctx.DECIMAL_VALUE().getText()[2:].replace('_', ''), 10);
+
+    def visitOctalValue(self, ctx):
+        return ValueFormat.VERILOG_OCTAL, int(ctx.OCTAL_VALUE().getText().replace[2:]('_', ''), 8);
+
+    def visitPlainDecimal(self, ctx):
+        return ValueFormat.PLAIN, int(ctx.INT().getText(), 10);
+
+    def visitAnnotation(self, ctx):
+        return Annotation(
+            name=ctx.ANNOTATION_NAME().getText(),
+            value='' if not ctx.ANNOTATION_NAME() else ctx.ANNOTATION_NAME().getText()
+        )
 
 
 def fasm_line_to_string(fasm_line, canonical=False):
