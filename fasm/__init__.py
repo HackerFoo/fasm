@@ -198,8 +198,18 @@ def canonical_features(set_feature):
 
 class FasmTupleVisitor(FasmParserVisitor):
     def visitFasmFile(self, ctx):
-        return map(self.visit, ctx.getChildren())
-        
+        for c in ctx.fasmLine():
+            line = self.visit(c);
+            if line.set_feature or line.annotations or line.comment:
+                yield line
+
+    def visitFasmLine(self, ctx):
+        return FasmLine(
+            set_feature = self.visit(ctx.setFasmFeature()) if ctx.setFasmFeature() else None,
+            annotations = list(self.visit(ctx.annotations())) if ctx.annotations() else None,
+            comment = ctx.COMMENT_CAP().getText()[1:] if ctx.COMMENT_CAP() else None
+        )
+
     def visitSetFasmFeature(self, ctx):
         start = None
         end = None
@@ -208,7 +218,7 @@ class FasmTupleVisitor(FasmParserVisitor):
 
         if ctx.value():
             value_format, value = self.visit(ctx.value())
-        
+
         if ctx.featureAddress():
             start, end = self.visit(ctx.featureAddress())
 
@@ -221,8 +231,8 @@ class FasmTupleVisitor(FasmParserVisitor):
         )
 
     def visitFeatureAddress(self, ctx):
-        start = int(ctx.INT(0).getText(), 10)
-        end = None if not ctx.INT(1) else int(ctx.INT(1).getText(), 10)
+        end = int(ctx.INT(0).getText(), 10)
+        start = int(ctx.INT(1).getText(), 10) if ctx.INT(1) else end
         return start, end
 
     def visitVerilogValue(self, ctx):
@@ -230,7 +240,7 @@ class FasmTupleVisitor(FasmParserVisitor):
         if True:
             assert value < 2 ** int(ctx.INT().getText()), "value larger than bit width"
         return value_format, value
-    
+
     def visitHexValue(self, ctx):
         return ValueFormat.VERILOG_HEX, int(ctx.HEXADECIMAL_VALUE().getText()[2:].replace('_', ''), 16);
 
@@ -247,12 +257,12 @@ class FasmTupleVisitor(FasmParserVisitor):
         return ValueFormat.PLAIN, int(ctx.INT().getText(), 10);
 
     def visitAnnotations(self, ctx):
-        return map(self.visit, ctx.getChildren())
+        return map(self.visit, ctx.annotation())
 
     def visitAnnotation(self, ctx):
         return Annotation(
             name=ctx.ANNOTATION_NAME().getText(),
-            value='' if not ctx.ANNOTATION_NAME() else ctx.ANNOTATION_NAME().getText()
+            value='' if not ctx.ANNOTATION_NAME() else ctx.ANNOTATION_VALUE().getText()[1:-1]
         )
 
 
