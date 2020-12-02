@@ -16,12 +16,11 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-class BuildAntlrCommand(setuptools.command.build_py.build_py):
-  """Run ANTLR."""
+class BuildMakeCommand(setuptools.command.build_py.build_py):
+  """Run make."""
 
   def run(self):
-    os.system('python setup.py antlr -g FasmLexer')
-    os.system('python setup.py antlr -g FasmParser')
+    os.system('make')
     setuptools.command.build_py.build_py.run(self)
 
 setuptools.setup(
@@ -37,8 +36,6 @@ setuptools.setup(
     package_data={
         'fasm': ['*.g4'],
     },
-    setup_requires=['setuptools-antlr'],
-    install_requires=['antlr4-python3-runtime'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: ISC License",
@@ -48,6 +45,6 @@ setuptools.setup(
         'console_scripts': ['fasm=fasm:main'],
     },
     cmdclass={
-        'build_py' : BuildAntlrCommand,
+        'build_py' : BuildMakeCommand,
     },
 )
