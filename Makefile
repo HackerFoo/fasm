@@ -6,8 +6,11 @@
 #
 # SPDX-License-Identifier: ISC
 
+CXXFLAGS += -Wno-attributes -g -O0
+LDFLAGS += -lantlr4-runtime
+
 .PHONY: all
-all: antlr
+all: fasm_parse
 
 PYTHON_FORMAT ?= yapf
 format:
@@ -18,9 +21,8 @@ check-license:
 	@./.github/check_python_scripts.sh
 
 
-# ANTLR
-.PHONY: antlr
-antlr: cpp/FasmParser.cpp cpp/FasmLexer.cpp
+fasm_parse: cpp/FasmParse.o cpp/FasmParser.o cpp/FasmLexer.o
+	$(CXX) $(LDFLAGS) $^ -o $@
 
 cpp/FasmParser.cpp \
 cpp/FasmParser.h \
