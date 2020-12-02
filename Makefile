@@ -44,4 +44,5 @@ cpp/FasmLexer.tokens : fasm/FasmLexer.g4
 
 .PHONY: clean
 clean:
-	rm -rf cpp build
+	rm -f cpp/FasmLexer* cpp/FasmParser*
+	rm -rf build

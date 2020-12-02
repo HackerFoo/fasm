@@ -9,7 +9,7 @@
 
 #define EMIT(x)                                                         \
   std::stringstream header;                                             \
-  header << #x << std::hex << std::setw(4) << data.str().size();        \
+  header << #x << std::uppercase << std::hex << std::setw(4) << data.str().size(); \
   return header.str() + data.str()
 
 int count_without(std::string::iterator start,
@@ -65,7 +65,7 @@ public:
   }
 
   antlrcpp::Any visitFeatureAddress(FasmParser::FeatureAddressContext *context) override {
-    DATA << std::hex << std::setw(4) << stol(context->INT[0]->GetText());
+    DATA << std::uppercase << std::hex << std::setw(4) << stol(context->INT[0]->GetText());
     if (context->INT[1]) {
       data << stoul(context->INT[1]->GetText());
     }
@@ -85,7 +85,7 @@ public:
   }
 
   antlrcpp::Any visitPlainDecimal(FasmParser::PlainDecimalContext *context) override {
-    DATA << std::hex << std::stol(context->INT[0]->GetText());
+    DATA << std::uppercase << std::hex << std::stol(context->INT[0]->GetText());
     EMIT(p);
   }
 
@@ -137,21 +137,43 @@ public:
   }
 
   antlrcpp::Any visitOctalValue(FasmParser::OctalValueContext *context) override {
-        return ValueFormat.VERILOG_OCTAL, int(ctx.OCTAL_VALUE().getText()[2:].replace('_', ''), 8);
-
+    DATA;
+    std::string value = context->OCTAL_VALUE().getText();
+    auto it = value.begin();
+    it += 2; // skip 'b
+    int bits = count_without(it, value.end(), '_');
+    int digit = 0;
+    while (it != value.end()) {
+      if (*it != '_') {
+        digit = (digit << 3) | (*it - '0');
+        if (!(--bits % 4)) {
+          data.put(hex_digit(digit));
+          digit >>= 4;
+        }
+      }
+    }
+    EMIT(b);
   }
 
   antlrcpp::Any visitAnnotations(FasmParser::AnnotationsContext *context) override {
-        return map(self.visit, ctx.annotation())
-
+    DATA;
+    for (auto &a : context->annotation()) {
+      data << visit(a);
+    }
+    EMIT(A);
   }
 
   antlrcpp::Any visitAnnotation(FasmParser::AnnotationContext *context) override {
-        return Annotation(
-            name=ctx.ANNOTATION_NAME().getText(),
-            value='' if not ctx.ANNOTATION_NAME() else ctx.ANNOTATION_VALUE().getText()[1:-1]
-        )
-          }
+    std::string name = context.ANNOTATION_NAME().getText();
+    DATA << 'n' << std::uppercase << std::hex << std::setw(4) << name.size() << name;
+    if (context->ANNOTATION_VALUE()) {
+      std::string value = context->ANNOTATION_VALUE();
+      value.erase(0, 1);
+      value.erase(value.size()-2, 1);
+      data << 'v' << std::uppercase << std::hex << std::setw(4) << value.size() << value;
+    }
+    EMIT(a);
+  }
 
 private:
   std::ostream &out;
