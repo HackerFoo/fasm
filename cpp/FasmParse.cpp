@@ -6,19 +6,41 @@
 using namespace antlr4;
 using namespace antlrcpp;
 
-#define DATA                                    \
-  std::ostringstream data;                      \
-  data << std::uppercase << std::hex;           \
-  data
-
 #define GET(x) (context->x() ? visit(context->x()).as<std::string>() : "")
 
-#define EMIT(x)                                 \
-  std::ostringstream header;                    \
-  header << #x << std::uppercase << std::hex;   \
-  header << std::setfill('0') << std::setw(4) << data.str().size();      \
-  std::cout << header.str() << data.str() << std::endl; \
-  return header.str() + data.str()
+std::string withHeader(char tag, std::string data) {
+  std::ostringstream header;
+  header << tag;
+  header << std::uppercase << std::hex;
+  header << std::setfill('0') << std::setw(8) << data.size();
+  return header.str() + data;
+}
+
+template<typename T>
+class Num {
+public:
+  T num;
+  Num(T num) : num(num) {}
+};
+
+template<typename T>
+std::ostream &operator<<(std::ostream &s, const Num<T> &num) {
+  s << std::uppercase << std::hex;
+  s << std::setfill('0') << std::setw(8);
+  s << num.num;
+  return s;
+}
+
+struct Str {
+  char tag;
+  std::string data;
+  Str(char tag, std::string data) : tag(tag), data(data) {}
+};
+
+std::ostream &operator<<(std::ostream &s, const Str &str) {
+  s << str.tag << Num<size_t>(str.data.size()) << str.data;
+  return s;
+}
 
 int count_without(std::string::iterator start,
                   std::string::iterator end,
@@ -37,7 +59,7 @@ int count_without(std::string::iterator start,
 char hex_digit(int x) {
   assert(x >= 0 && x < 16);
   return (x < 10 ? '0' : 'A' - 10) + x;
-}    
+}
 
 class FasmParserBaseVisitor : public FasmParserVisitor {
 
@@ -52,37 +74,49 @@ public:
    * Visit parse trees produced by FasmParser.
    */
   virtual antlrcpp::Any visitFasmFile(FasmParser::FasmFileContext *context) override {
-    visitChildren(context);
+    for (auto &line : context->fasmLine()) {
+      std::string str = visit(line);
+      if (!str.empty()) {
+        out << str << std::endl;
+      }
+    }
     return {};
   }
 
   virtual antlrcpp::Any visitFasmLine(FasmParser::FasmLineContext *context) override {
-    DATA << GET(setFasmFeature)
+    std::ostringstream data;
+    data << GET(setFasmFeature)
          << GET(annotations);
 
     if (context->COMMENT_CAP()) {
       std::string c = context->COMMENT_CAP()->getText();
       c.erase(0, 1); // remove the leading #
-      data << "C" << std::setfill('0') << std::setw(4) << c.size() << c;
+      data << Str('#', c);
     }
 
-    data << std::endl; // just to make it more readable
-    EMIT(L);
+    if (!data.str().empty()) {
+      return withHeader('l', data.str());
+    } else {
+      return std::string();
+    }
   }
 
   virtual antlrcpp::Any visitSetFasmFeature(FasmParser::SetFasmFeatureContext *context) override {
-    DATA << context->FEATURE()->getText()
+    std::ostringstream data;
+    data << context->FEATURE()->getText()
          << GET(featureAddress)
          << GET(value);
-    EMIT(S);
+    return withHeader('f', data.str());
   }
 
   virtual antlrcpp::Any visitFeatureAddress(FasmParser::FeatureAddressContext *context) override {
-    DATA << std::setfill('0') << std::setw(4) << stol(context->INT(0)->getText());
+    std::ostringstream data;
+    data << Num<unsigned long>(std::stoul(context->INT(0)->getText()));
+
     if (context->INT(1)) {
-      data << std::stoul(context->INT(1)->getText());
+      data << Num<unsigned long>(std::stoul(context->INT(1)->getText()));
     }
-    EMIT(r);
+    return withHeader(':', data.str());
   }
 
   virtual antlrcpp::Any visitVerilogValue(FasmParser::VerilogValueContext *context) override {
@@ -98,12 +132,13 @@ public:
   }
 
   virtual antlrcpp::Any visitPlainDecimal(FasmParser::PlainDecimalContext *context) override {
-    DATA << std::stol(context->INT()->getText());
-    EMIT(p);
+    std::ostringstream data;
+    data << std::stol(context->INT()->getText());
+    return withHeader('p', data.str());
   }
 
   virtual antlrcpp::Any visitHexValue(FasmParser::HexValueContext *context) override {
-    DATA;
+    std::ostringstream data;
     std::string value = context->HEXADECIMAL_VALUE()->getText();
     auto it = value.begin();
     it += 2; // skip 'h
@@ -113,15 +148,15 @@ public:
       }
       it++;
     }
-    EMIT(h);
+    return withHeader('h', data.str());
   }
 
   virtual antlrcpp::Any visitBinaryValue(FasmParser::BinaryValueContext *context) override {
-    DATA;
+    std::ostringstream data;    
     std::string value = context->BINARY_VALUE()->getText();
     auto it = value.begin();
     it += 2; // skip 'b
-    int bits = (4 - count_without(it, value.end(), '_')) % 4;
+    int bits = (4 - count_without(it, value.end(), '_') % 4) % 4;
     int digit = 0;
     while (it != value.end()) {
       if (*it != '_') {
@@ -135,7 +170,7 @@ public:
       }
       it++;
     }
-    EMIT(b);
+    return withHeader('b', data.str());
   }
 
   virtual antlrcpp::Any visitDecimalValue(FasmParser::DecimalValueContext *context) override {
@@ -149,12 +184,13 @@ public:
       }
       it++;
     }
-    DATA << integer;
-    EMIT(d);
+    std::ostringstream data;
+    data << std::uppercase << std::hex << integer;
+    return withHeader('d', data.str());
   }
 
   virtual antlrcpp::Any visitOctalValue(FasmParser::OctalValueContext *context) override {
-    DATA;
+    std::ostringstream data;   
     std::string value = context->OCTAL_VALUE()->getText();
     auto it = value.begin();
     it += 2; // skip 'b
@@ -164,7 +200,6 @@ public:
       if (*it != '_') {
         digit = (digit << 3) | (*it - '0');
         bits += 3;
-        std::cout << bits << ": " << *it << " " << digit << std::endl;
         if (bits >= 4) {
           data.put(hex_digit(digit >> (bits - 4)));
           digit >>= 4;
@@ -174,27 +209,27 @@ public:
       it++;
     }
     assert(!digit);
-    EMIT(o);
+    return withHeader('o', data.str());
   }
 
   virtual antlrcpp::Any visitAnnotations(FasmParser::AnnotationsContext *context) override {
-    DATA;
+    std::ostringstream data;   
     for (auto &a : context->annotation()) {
       data << visit(a).as<std::string>();
     }
-    EMIT(A);
+    return withHeader('{', data.str());
   }
 
   virtual antlrcpp::Any visitAnnotation(FasmParser::AnnotationContext *context) override {
-    std::string name = context->ANNOTATION_NAME()->getText();
-    DATA << 'n' << std::setfill('0') << std::setw(4) << name.size() << name;
+    std::ostringstream data;
+    data << Str('.', context->ANNOTATION_NAME()->getText());
     if (context->ANNOTATION_VALUE()) {
       std::string value = context->ANNOTATION_VALUE()->getText();
       value.erase(0, 1); // "value" -> value
       value.pop_back();
-      data << 'v' << std::setfill('0') << std::setw(4) << value.size() << value;
+      data << Str('=', value);
     }
-    EMIT(a);
+    return withHeader('a', data.str());
   }
 
 private:
@@ -211,18 +246,22 @@ void parse_fasm(std::istream &in, std::ostream &out) {
   FasmParserBaseVisitor(out).visit(tree);
 }
 
-/*
-char *parse_fasm_string(s) {
-  
-    return parse_fasm(InputStream(s))
+static std::ostringstream output_buffer;
+
+const char *parse_fasm_string(const char *in) {
+  output_buffer.str(std::string()); // clear the output
+  std::istringstream input(in);
+  parse_fasm(input, output_buffer);
+  return output_buffer.str().c_str();
 }
 
-
-  char *parse_fasm_filename(filename) {
-    """ Parse FASM file, returning list of FasmLine named tuples."""
-    return parse_fasm(FileStream(filename))
-      }
-*/
+const char *parse_fasm_filename(const char *path) {
+  output_buffer.str(std::string()); // clear the output
+  std::fstream input(std::string(path), input.in);
+  if(!input.is_open()) return nullptr;
+  parse_fasm(input, output_buffer);
+  return output_buffer.str().c_str();
+}
 
 int main(int argc, char *argv[]) {
   if (argc > 1) {
