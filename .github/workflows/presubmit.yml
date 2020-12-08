@@ -42,6 +42,10 @@ jobs:
             TOXENV: py36
           - python-version: 3.7
             TOXENV: py37
+          - python-version: 3.8
+            TOXENV: py38
+          - python-version: 3.9
+            TOXENV: py39
     steps:
       - uses: actions/checkout@v2
         with:
