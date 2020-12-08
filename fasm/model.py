@@ -11,7 +11,6 @@
 
 from collections import namedtuple
 import enum
-import fasm.tags as tags
 
 
 # Number format used for a FASM value.
@@ -22,15 +21,6 @@ class ValueFormat(enum.Enum):
     VERILOG_BINARY = 3  # 8'b00101010
     VERILOG_OCTAL = 4  # 8'o52
 
-
-# Converts tag values from parse_fasm to ValueFormats
-TAG_TO_VALUE_FORMAT = {
-    tags.plain: ValueFormat.PLAIN,
-    tags.decimal: ValueFormat.VERILOG_DECIMAL,
-    tags.hex: ValueFormat.VERILOG_HEX,
-    tags.binary: ValueFormat.VERILOG_BINARY,
-    tags.octal: ValueFormat.VERILOG_OCTAL
-}
 
 # Python version of a SetFasmFeature line.
 # feature is a string

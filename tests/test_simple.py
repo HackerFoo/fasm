@@ -15,6 +15,8 @@ import os.path
 import unittest
 import fasm
 
+print('Parser implementation: {}'.format(fasm.parser_implementation))
+
 
 def example(fname):
     return os.path.join(os.path.dirname(__file__), '..', 'examples', fname)

@@ -35,19 +35,26 @@ class CMakeExtension(Extension):
 class CMakeBuild(build_ext):
     def run(self):
         try:
-            out = subprocess.check_output(['cmake', '--version'])
-        except OSError:
-            raise RuntimeError(
-                "CMake must be installed to build the following extensions: " +
-                ", ".join(e.name for e in self.extensions))
+            try:
+                out = subprocess.check_output(['cmake', '--version'])
+            except OSError:
+                raise RuntimeError(
+                    "CMake must be installed to build "
+                    "the following extensions: " +
+                    ", ".join(e.name for e in self.extensions))
 
-        cmake_version = LooseVersion(
-            re.search(r'version\s*([\d.]+)', out.decode()).group(1))
-        if cmake_version < '3.7.0':
-            raise RuntimeError("CMake >= 3.7.0 is required.")
+            cmake_version = LooseVersion(
+                re.search(r'version\s*([\d.]+)', out.decode()).group(1))
+            if cmake_version < '3.7.0':
+                raise RuntimeError("CMake >= 3.7.0 is required.")
 
-        for ext in self.extensions:
-            self.build_extension(ext)
+            for ext in self.extensions:
+                self.build_extension(ext)
+
+        except BaseException:
+            print(
+                "Failed to build ANTLR parser, "
+                "falling back on slower textX parser.")
 
     def build_extension(self, ext):
         extdir = os.path.join(
@@ -90,6 +97,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/SymbiFlow/fasm",
     packages=setuptools.find_packages(exclude=('tests*', )),
+    install_requires=['textx'],
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",

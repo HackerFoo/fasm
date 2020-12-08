@@ -32,3 +32,5 @@ recursive-include third_party *
 global-exclude .git
 exclude .gitmodules
 exclude .clang-format
+
+recursive-include fasm *.tx

@@ -11,7 +11,15 @@
 
 from __future__ import print_function
 from fasm.model import ValueFormat, SetFasmFeature, FasmLine
-from fasm.parse_fasm import parse_fasm_filename, parse_fasm_string
+
+try:
+    from fasm.parse_fasm import \
+        parse_fasm_filename, parse_fasm_string, parser_implementation
+except ImportError as e:
+    print('WARNING: Importing fasm.parse_fasm: {}'.format(e))
+    print('         Falling back on slower textX parser implementation')
+    from fasm.parse_fasm_textx import \
+        parse_fasm_filename, parse_fasm_string, parser_implementation
 
 
 def fasm_value_to_str(value, width, value_format):
