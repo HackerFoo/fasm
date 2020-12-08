@@ -1,7 +1,25 @@
 ## FPGA Assembly (FASM) Parser and Generation library
 
-This library provides a textX grammer for the FASM file format some basic
+This library provides an ANTLR grammar for the FASM file format and some basic
 functions for parsing and generating FASM files.
+
+## Build Instructions
+
+CMake is required, and ANTLR has a few dependencies:
+
+    sudo apt install cmake default-jre-headless uuid-dev libantlr4-runtime-dev
+
+Pull dependencies in `third_party`:
+
+    git submodule update --init
+
+Build:
+
+    make build
+
+Test with:
+
+    python setup.py test
 
 ## FPGA Assembly (FASM)
 
